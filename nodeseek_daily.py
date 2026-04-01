@@ -269,14 +269,19 @@ def click_chicken_leg(driver):
         return False
 
 if __name__ == "__main__":
-    print("开始执行NodeSeek评论脚本...")
+    print("开始执行NodeSeek自动任务...")
     driver = setup_driver_and_cookies()
     if not driver:
         print("浏览器初始化失败")
         exit(1)
-    nodeseek_comment(driver)
+    
+    # 建议先签到，确保最重要的奖励拿到
     click_sign_icon(driver)
-    print("脚本执行完成")
+    
+    # 再去执行评论加鸡腿任务
+    nodeseek_comment(driver)
+    
+    print("所有脚本执行完成")
     # while True:
     #     time.sleep(1)
 
