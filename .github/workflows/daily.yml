@@ -1,4 +1,4 @@
-name: NodeSeek 自动签到评论加鸡腿
+name: NodeSeek 多账号自动化
 
 on:
   push:
@@ -12,8 +12,14 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
-  run-nodeseek-daily:
+  run-nodeseek:
     runs-on: ubuntu-latest
+    strategy:
+      # 即使其中一个账号报错，也不影响其他账号运行
+      fail-fast: false 
+      matrix:
+        # 在这里定义你的账号编号，有几个账号就写几个
+        account_id: [1, 2] 
 
     steps:
       - name: Checkout repository
@@ -28,15 +34,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          # 强制安装最新版本，确保它认识 version_main 这个参数
           pip install --upgrade undetected-chromedriver selenium
 
       - name: Run NodeSeek script
         env:
-          NS_COOKIE: ${{ secrets.NS_COOKIE }}
-          NS_RANDOM: ${{ secrets.NS_RANDOM }}
+          # 动态读取对应的 Secret，例如 NS_COOKIE_1, NS_COOKIE_2
+          NS_COOKIE: ${{ secrets[format('NS_COOKIE_{0}', matrix.account_id)] }}
+          NS_RANDOM: "true"
           HEADLESS: "true"
         run: |
-          # 运行前清理一下可能存在的旧驱动缓存
-          rm -rf ~/.local/share/undetected_chromedriver
+          echo "正在为账号 ${{ matrix.account_id }} 执行任务..."
           python nodeseek_daily.py
