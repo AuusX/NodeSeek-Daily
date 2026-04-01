@@ -140,18 +140,18 @@ def setup_driver_and_cookies():
 
 def nodeseek_comment(driver):
     try:
-        total_replied_count = 0  # 计数器
-        replied_urls = set()     # 去重集合
+        total_simulated_count = 0  # 模拟计数器
+        replied_urls = set()
 
         # 定义话术词库
         buy_replies = ["祝早收", "早收", "bd", "帮顶"]
         sell_replies = ["好鸡bd", "好鸡", "帮顶", "绑定", "祝早出"]
         default_replies = ["bd", "帮顶", "绑定"]
 
-        print(f"🚀 开始回帖任务，目标：10 个帖子")
+        print(f"🧪 [模拟模式] 开始回帖演习，目标：10 个帖子")
 
-        while total_replied_count < 10:
-            print(f"\n--- 正在刷新列表 (已完成: {total_replied_count}/10) ---")
+        while total_simulated_count < 10:
+            print(f"\n--- [模拟] 正在刷新列表 (进度: {total_simulated_count}/10) ---")
             driver.get('https://www.nodeseek.com/categories/trade')
             time.sleep(5)
             
@@ -160,103 +160,88 @@ def nodeseek_comment(driver):
                     EC.presence_of_all_elements_located((By.CSS_SELECTOR, '.post-list-item'))
                 )
             except:
-                print("加载列表失败，5分钟后重试...")
-                time.sleep(300)
+                print("[模拟] 加载列表失败，尝试刷新...")
                 continue
 
-            # --- 筛选逻辑 ---
+            # --- 筛选逻辑 (保持不变，用于验证准确性) ---
             target_post = None
             for post in posts:
                 try:
-                    # 1. 排除置顶
                     if post.find_elements(By.CSS_SELECTOR, '.pined'): continue
                     
-                    # 2. 获取基本信息
                     title_elem = post.find_element(By.CSS_SELECTOR, '.post-title a')
                     url = title_elem.get_attribute('href')
                     title = title_elem.text
                     
-                    # 3. 排除已回复
                     if url in replied_urls: continue
                     
-                    # 4. 评论数筛选 (<= 5)
                     comment_text = post.find_element(By.CSS_SELECTOR, '.post-comments').text.strip()
                     comment_count = int(comment_text) if comment_text.isdigit() else 0
                     
                     if comment_count <= 5:
-                        target_post = {"url": url, "title": title}
+                        target_post = {"url": url, "title": title, "comments": comment_count}
                         break 
                 except:
                     continue
 
             if not target_post:
-                print("暂时没有符合条件的 5 评以内新贴，休息 5 分钟...")
+                print("[模拟] 暂时没发现 5 评以内新贴，5 分钟后重扫...")
                 time.sleep(300)
                 continue
 
-            # --- 匹配回复内容 ---
+            # --- 匹配逻辑验证 ---
             current_title = target_post["title"]
             if "收" in current_title:
+                reply_type = "收贴话术"
                 reply_content = random.choice(buy_replies)
             elif "出" in current_title:
+                reply_type = "出贴话术"
                 reply_content = random.choice(sell_replies)
             else:
+                reply_type = "默认话术"
                 reply_content = random.choice(default_replies)
 
-            # --- 执行回帖 ---
+            # --- 模拟执行展示 ---
+            print("="*50)
+            print(f"🔍 [发现符合条件帖子]")
+            print(f"   标题: {current_title}")
+            print(f"   评论数: {target_post['comments']}")
+            print(f"   链接: {target_post['url']}")
+            print(f"   匹配类型: {reply_type}")
+            print(f"   拟回复内容: 【{reply_content}】")
+            print("="*50)
+
+            # 为了验证页面加载是否正常，我们依然可以“假装”点进去看一眼
             try:
-                print(f"🎯 目标帖: [{current_title}]")
-                print(f"💬 拟回复: {reply_content}")
                 driver.get(target_post["url"])
-                time.sleep(5)
-
-                # 1. 点击加鸡腿 (可选，沿用你之前的逻辑)
-                # click_chicken_leg(driver)
-
-                # 2. 定位编辑器并输入
-                editor = WebDriverWait(driver, 30).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, '.CodeMirror'))
-                )
-                # 强制 JS 点击获取焦点
-                driver.execute_script("arguments[0].CodeMirror.focus();", editor)
-                time.sleep(1)
+                time.sleep(3)
+                print(f"✅ [页面访问成功] 确认回复框已加载。")
                 
-                # 使用 ActionChains 模拟打字
-                actions = ActionChains(driver)
-                for char in reply_content:
-                    actions.send_keys(char)
-                    actions.pause(random.uniform(0.1, 0.3))
-                actions.perform()
-                time.sleep(2)
-
-                # 3. 提交评论
-                submit_btn = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.XPATH, "//button[contains(., '发布评论')]"))
-                )
-                driver.execute_script("arguments[0].click();", submit_btn)
+                # --- 注意：以下是模拟动作，不会产生真实提交 ---
+                print("🚫 [模拟] 跳过真实输入和点击提交按钮的操作...")
                 
-                total_replied_count += 1
+                total_simulated_count += 1
                 replied_urls.add(target_post["url"])
-                print(f"✅ 回复成功！进度: {total_replied_count}/10")
 
-                # --- 休息判断 ---
-                if total_replied_count < 10:
-                    wait_time = random.randint(120, 300) # 2-5 分钟
-                    print(f"🍵 休息 {wait_time} 秒后继续寻找...")
+                # --- 模拟休息逻辑 ---
+                if total_simulated_count < 10:
+                    wait_time = random.randint(10, 20) # 测试时可以缩短休息时间，正式时改回 120-300
+                    print(f"⏱️ [模拟休息] 等待 {wait_time} 秒后模拟下一次寻找...")
                     time.sleep(wait_time)
                 else:
-                    print("🎊 已满 10 个，进入一小时长休息心跳模式...")
-                    for i in range(6):
-                        time.sleep(600) # 每10分钟打个日志防止 GitHub Actions 杀进程
-                        print(f"💤 深度睡眠中... 已过去 {(i+1)*10} 分钟")
-                    print("一小时休息结束，脚本运行圆满完成。")
+                    print("\n🎊 [演习结束] 已完成 10 个帖子的模拟测试。")
+                    print("💤 [模拟] 进入一小时长休息的心跳日志输出...")
+                    for i in range(3): # 演习时只模拟 30 分钟
+                        time.sleep(600)
+                        print(f"💤 演习长休息中... 已过去 {(i+1)*10} 分钟")
+                    return 
 
             except Exception as e:
-                print(f"回帖操作失败: {e}")
-                time.sleep(60)
+                print(f"❌ [模拟出错] 无法访问帖子页面: {e}")
+                time.sleep(5)
 
     except Exception as e:
-        print(f"nodeseek_comment 发生重大错误: {e}")
+        print(f"❌ [模拟全局异常]: {e}")
 
 def click_chicken_leg(driver):
     try:
