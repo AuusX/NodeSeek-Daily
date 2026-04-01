@@ -25,49 +25,51 @@ randomInputStr = ["bd","绑定","帮顶"]
 
 def click_sign_icon(driver):
     """
-    尝试点击签到图标和试试手气按钮
+    根据最新的 HTML 结构点击签到按钮
     """
     try:
-        print("开始查找签到图标...")
-        # 显式等待图标出现
-        sign_icon = WebDriverWait(driver, 30).until(
+        print("开始查找签到图标 (Header)...")
+        # 1. 点击顶部的“签到”小图标进入签到页面
+        sign_nav_icon = WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((By.XPATH, "//span[@title='签到']"))
         )
-        
-        # 方案：直接使用 JavaScript 点击，彻底绕过“导航栏拦截”问题
-        print("通过 JavaScript 触发签到图标点击...")
-        driver.execute_script("arguments[0].click();", sign_icon)
-        
-        print("等待页面跳转到抽奖贴...")
-        time.sleep(8)  # 给页面充足的加载时间
-        
-        print(f"当前页面URL: {driver.current_url}")
-        
-        # 点击"试试手气"或"鸡腿"按钮
+        print("通过 JS 触发 Header 签到图标点击...")
+        driver.execute_script("arguments[0].click();", sign_nav_icon)
+
+        # 2. 等待签到板 (Board) 加载
+        print("等待签到看板加载...")
+        time.sleep(8) 
+        print(f"当前页面 URL: {driver.current_url}")
+
+        # 3. 根据 HTML 结构查找按钮
+        # 按钮 1: 鸡腿 x 5 (固定奖励)
+        # 按钮 2: 试试手气 (随机奖励)
         try:
-            # 这里的写法修正了之前的语法错误，并使用了更宽泛的 XPath
-            reward_xpath = "//button[contains(., '试试手气')] | //button[contains(., '鸡腿 x 5')]"
-            
-            click_button = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH, reward_xpath))
-            )
-            
-            # 同样建议使用 JS 点击，防止在抽奖贴里也被拦截
-            driver.execute_script("arguments[0].click();", click_button)
-            print("🎉 签到/抽奖成功！")
-            
-        except Exception as lucky_error:
-            # 如果没找到按钮，可能是因为今天已经签过到了
-            if "timeout" in str(lucky_error).lower():
-                print("未发现抽奖按钮，可能今日已签到。")
+            # 这里的逻辑：如果有 NS_RANDOM 环境变且为 true，选“试试手气”，否则选“鸡腿 x 5”
+            if os.environ.get("NS_RANDOM", "false").lower() == "true":
+                target_text = "试试手气"
             else:
-                print(f"抽奖按钮操作失败: {str(lucky_error)}")
-                
-        return True
-        
+                target_text = "鸡腿 x 5"
+
+            print(f"准备寻找按钮: 【{target_text}】")
+            
+            # 使用更强大的 XPath 定位包含特定文本的按钮
+            target_button = WebDriverWait(driver, 15).until(
+                EC.presence_of_element_located((By.XPATH, f"//button[contains(text(), '{target_text}')]"))
+            )
+
+            # 4. 物理点击容易被拦截，直接用 JS 点击
+            driver.execute_script("arguments[0].click();", target_button)
+            print(f"🎉 成功点击了：{target_text}")
+            return True
+
+        except Exception as btn_err:
+            print(f"无法找到签到按钮，可能原因：今日已签到过。错误: {str(btn_err)}")
+            # 打印一下当前的 HTML 片段方便后续排查
+            return False
+
     except Exception as e:
-        print(f"签到流程异常: {type(e).__name__}")
-        traceback.print_exc()
+        print(f"签到流程整体出错: {str(e)}")
         return False
 
 def setup_driver_and_cookies():
