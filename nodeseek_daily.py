@@ -279,7 +279,7 @@ if __name__ == "__main__":
     click_sign_icon(driver)
     
     # 再去执行评论加鸡腿任务
-    nodeseek_comment(driver)
+   # nodeseek_comment(driver)
     
     print("所有脚本执行完成")
     # while True:
