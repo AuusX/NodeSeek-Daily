@@ -25,48 +25,51 @@ randomInputStr = ["bd","绑定","帮顶"]
 
 def click_sign_icon(driver):
     """
-    直接访问签到板页面并执行签到
+    根据最新的 HTML 结构点击签到按钮
     """
     try:
-        # 1. 直接跳转到签到页面，省去点击图标的麻烦
-        print("直接访问签到板页面...")
-        driver.get('https://www.nodeseek.com/board')
-        
-        # 2. 等待页面加载（Actions 环境建议多等会儿）
-        print("等待签到按钮加载...")
-        time.sleep(8) 
-        
-        # 3. 确定签到策略：是“拿稳 5 个鸡腿”还是“试试手气”
-        # 注意：这里使用了你脚本开头定义的 ns_random 变量
-        use_random = os.environ.get("NS_RANDOM", "false").lower() == "true"
-        target_text = "试试手气" if use_random else "鸡腿 x 5"
-        
-        print(f"当前策略：{target_text}。正在定位按钮...")
+        print("开始查找签到图标 (Header)...")
+        # 1. 点击顶部的“签到”小图标进入签到页面
+        sign_nav_icon = WebDriverWait(driver, 20).until(
+            EC.presence_of_element_located((By.XPATH, "//span[@title='签到']"))
+        )
+        print("通过 JS 触发 Header 签到图标点击...")
+        driver.execute_script("arguments[0].click();", sign_nav_icon)
 
-        # 4. 根据你提供的 HTML 结构，使用 XPath 精准定位
-        # 这里的 XPath 会寻找 class 为 btn 且包含目标文字的 button
+        # 2. 等待签到板 (Board) 加载
+        print("等待签到看板加载...")
+        time.sleep(8) 
+        print(f"当前页面 URL: {driver.current_url}")
+
+        # 3. 根据 HTML 结构查找按钮
+        # 按钮 1: 鸡腿 x 5 (固定奖励)
+        # 按钮 2: 试试手气 (随机奖励)
         try:
-            sign_button = WebDriverWait(driver, 15).until(
-                EC.presence_of_element_located((
-                    By.XPATH, f"//button[contains(@class, 'btn') and contains(text(), '{target_text}')]"
-                ))
+            # 这里的逻辑：如果有 NS_RANDOM 环境变且为 true，选“试试手气”，否则选“鸡腿 x 5”
+            if os.environ.get("NS_RANDOM", "false").lower() == "true":
+                target_text = "试试手气"
+            else:
+                target_text = "鸡腿 x 5"
+
+            print(f"准备寻找按钮: 【{target_text}】")
+            
+            # 使用更强大的 XPath 定位包含特定文本的按钮
+            target_button = WebDriverWait(driver, 15).until(
+                EC.presence_of_element_located((By.XPATH, f"//button[contains(text(), '{target_text}')]"))
             )
-            
-            # 5. 使用 JavaScript 强制点击（物理点击在无头模式下容易偏移）
-            driver.execute_script("arguments[0].click();", sign_button)
-            print(f"🎉 【成功】已点击“{target_text}”按钮！")
-            
-            # 额外等待 3 秒确保请求发送成功
-            time.sleep(3)
+
+            # 4. 物理点击容易被拦截，直接用 JS 点击
+            driver.execute_script("arguments[0].click();", target_button)
+            print(f"🎉 成功点击了：{target_text}")
             return True
 
         except Exception as btn_err:
-            # 如果找不到按钮，很可能是今天已经签到过了，按钮消失了
-            print("未发现签到按钮，可能今日已签到。")
+            print(f"无法找到签到按钮，可能原因：今日已签到过。错误: {str(btn_err)}")
+            # 打印一下当前的 HTML 片段方便后续排查
             return False
 
     except Exception as e:
-        print(f"签到流程出错: {str(e)}")
+        print(f"签到流程整体出错: {str(e)}")
         return False
 
 def setup_driver_and_cookies():
