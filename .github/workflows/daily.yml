@@ -6,7 +6,7 @@ on:
       - main
   schedule:
     - cron: '00 16 * * *'  # UTC 16:00，即北京时间 00:00
-
+workflow_dispatch:      # <--- 添加这一行，注意缩进与上面的 schedule 对齐
 jobs:
   run-nodeseek-daily:
     runs-on: ubuntu-latest
