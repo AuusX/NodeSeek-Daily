@@ -140,89 +140,123 @@ def setup_driver_and_cookies():
 
 def nodeseek_comment(driver):
     try:
-        print("正在访问交易区...")
-        target_url = 'https://www.nodeseek.com/categories/trade'
-        driver.get(target_url)
-        print("等待页面加载...")
-        
-        # 获取初始帖子列表
-        posts = WebDriverWait(driver, 30).until(
-            EC.presence_of_all_elements_located((By.CSS_SELECTOR, '.post-list-item'))
-        )
-        print(f"成功获取到 {len(posts)} 个帖子")
-        
-        # 过滤掉置顶帖
-        valid_posts = [post for post in posts if not post.find_elements(By.CSS_SELECTOR, '.pined')]
-        selected_posts = random.sample(valid_posts, min(20, len(valid_posts)))
-        
-        # 存储已选择的帖子URL
-        selected_urls = []
-        for post in selected_posts:
+        total_replied_count = 0  # 计数器
+        replied_urls = set()     # 去重集合
+
+        # 定义话术词库
+        buy_replies = ["祝早收", "早收", "bd", "帮顶"]
+        sell_replies = ["好鸡bd", "好鸡", "帮顶", "绑定", "祝早出"]
+        default_replies = ["bd", "帮顶", "绑定"]
+
+        print(f"🚀 开始回帖任务，目标：10 个帖子")
+
+        while total_replied_count < 10:
+            print(f"\n--- 正在刷新列表 (已完成: {total_replied_count}/10) ---")
+            driver.get('https://www.nodeseek.com/categories/trade')
+            time.sleep(5)
+            
             try:
-                post_link = post.find_element(By.CSS_SELECTOR, '.post-title a')
-                selected_urls.append(post_link.get_attribute('href'))
+                posts = WebDriverWait(driver, 30).until(
+                    EC.presence_of_all_elements_located((By.CSS_SELECTOR, '.post-list-item'))
+                )
             except:
+                print("加载列表失败，5分钟后重试...")
+                time.sleep(300)
                 continue
-        
-        is_chicken_leg = False
-        
-        # 使用URL列表进行操作
-        for i, post_url in enumerate(selected_urls):
+
+            # --- 筛选逻辑 ---
+            target_post = None
+            for post in posts:
+                try:
+                    # 1. 排除置顶
+                    if post.find_elements(By.CSS_SELECTOR, '.pined'): continue
+                    
+                    # 2. 获取基本信息
+                    title_elem = post.find_element(By.CSS_SELECTOR, '.post-title a')
+                    url = title_elem.get_attribute('href')
+                    title = title_elem.text
+                    
+                    # 3. 排除已回复
+                    if url in replied_urls: continue
+                    
+                    # 4. 评论数筛选 (<= 5)
+                    comment_text = post.find_element(By.CSS_SELECTOR, '.post-comments').text.strip()
+                    comment_count = int(comment_text) if comment_text.isdigit() else 0
+                    
+                    if comment_count <= 5:
+                        target_post = {"url": url, "title": title}
+                        break 
+                except:
+                    continue
+
+            if not target_post:
+                print("暂时没有符合条件的 5 评以内新贴，休息 5 分钟...")
+                time.sleep(300)
+                continue
+
+            # --- 匹配回复内容 ---
+            current_title = target_post["title"]
+            if "收" in current_title:
+                reply_content = random.choice(buy_replies)
+            elif "出" in current_title:
+                reply_content = random.choice(sell_replies)
+            else:
+                reply_content = random.choice(default_replies)
+
+            # --- 执行回帖 ---
             try:
-                print(f"正在处理第 {i+1} 个帖子")
-                driver.get(post_url)
-                
-                # 处理加鸡腿
-                if is_chicken_leg is False:
-                    is_chicken_leg = click_chicken_leg(driver)
-                
-                # 等待 CodeMirror 编辑器加载
+                print(f"🎯 目标帖: [{current_title}]")
+                print(f"💬 拟回复: {reply_content}")
+                driver.get(target_post["url"])
+                time.sleep(5)
+
+                # 1. 点击加鸡腿 (可选，沿用你之前的逻辑)
+                # click_chicken_leg(driver)
+
+                # 2. 定位编辑器并输入
                 editor = WebDriverWait(driver, 30).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, '.CodeMirror'))
                 )
+                # 强制 JS 点击获取焦点
+                driver.execute_script("arguments[0].CodeMirror.focus();", editor)
+                time.sleep(1)
                 
-                # 点击编辑器区域获取焦点
-                editor.click()
-                time.sleep(0.5)
-                input_text = random.choice(randomInputStr)
-
-                # 模拟输入
+                # 使用 ActionChains 模拟打字
                 actions = ActionChains(driver)
-                # 随机输入 randomInputStr
-                for char in input_text:
+                for char in reply_content:
                     actions.send_keys(char)
                     actions.pause(random.uniform(0.1, 0.3))
                 actions.perform()
-                
-                # 等待一下确保内容已经输入
                 time.sleep(2)
-                
-                # 使用更精确的选择器定位提交按钮
-                submit_button = WebDriverWait(driver, 30).until(
-                 EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'submit') and contains(@class, 'btn') and contains(text(), '发布评论')]"))
+
+                # 3. 提交评论
+                submit_btn = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.XPATH, "//button[contains(., '发布评论')]"))
                 )
-                # 确保按钮可见并可点击
-                driver.execute_script("arguments[0].scrollIntoView(true);", submit_button)
-                time.sleep(0.5)
-                submit_button.click()
+                driver.execute_script("arguments[0].click();", submit_btn)
                 
-                print(f"已在帖子 {post_url} 中完成评论")
-                
-                # 返回交易区
-                # driver.get(target_url)
-                # time.sleep(2)  # 等待页面加载
-                time.sleep(random.uniform(2,5))
-                
+                total_replied_count += 1
+                replied_urls.add(target_post["url"])
+                print(f"✅ 回复成功！进度: {total_replied_count}/10")
+
+                # --- 休息判断 ---
+                if total_replied_count < 10:
+                    wait_time = random.randint(120, 300) # 2-5 分钟
+                    print(f"🍵 休息 {wait_time} 秒后继续寻找...")
+                    time.sleep(wait_time)
+                else:
+                    print("🎊 已满 10 个，进入一小时长休息心跳模式...")
+                    for i in range(6):
+                        time.sleep(600) # 每10分钟打个日志防止 GitHub Actions 杀进程
+                        print(f"💤 深度睡眠中... 已过去 {(i+1)*10} 分钟")
+                    print("一小时休息结束，脚本运行圆满完成。")
+
             except Exception as e:
-                print(f"处理帖子时出错: {str(e)}")
-                continue
-                
-        print("NodeSeek评论任务完成")
-                
+                print(f"回帖操作失败: {e}")
+                time.sleep(60)
+
     except Exception as e:
-        print(f"NodeSeek评论出错: {str(e)}")
-        print("详细错误信息:")
-        print(traceback.format_exc())
+        print(f"nodeseek_comment 发生重大错误: {e}")
 
 def click_chicken_leg(driver):
     try:
